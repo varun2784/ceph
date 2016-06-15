@@ -270,7 +270,7 @@ class C_MDS_VoidFn : public MDSInternalContext
   }
 };
 
-uint64_t MDSRank::get_metadata_pool()
+int64_t MDSRank::get_metadata_pool()
 {
     return mdsmap->get_metadata_pool();
 }
@@ -954,7 +954,7 @@ void MDSRank::boot_start(BootStep step, int r)
           mdcache->open_root_inode(gather.new_sub());
         } else {
           // replay.  make up fake root inode to start with
-          mdcache->create_root_inode();
+          (void)mdcache->create_root_inode();
         }
         gather.activate();
       }

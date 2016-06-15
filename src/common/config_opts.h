@@ -22,6 +22,7 @@ OPTION(cluster_network, OPT_STR, "")
 OPTION(num_client, OPT_INT, 1)
 OPTION(monmap, OPT_STR, "")
 OPTION(mon_host, OPT_STR, "")
+OPTION(mon_dns_srv_name, OPT_STR, "ceph-mon")
 OPTION(lockdep, OPT_BOOL, false)
 OPTION(lockdep_force_backtrace, OPT_BOOL, false) // always gather current backtrace at every lock
 OPTION(run_dir, OPT_STR, "/var/run/ceph")       // the "/var/run/ceph" dir, created on daemon startup
@@ -373,7 +374,7 @@ OPTION(client_mount_timeout, OPT_DOUBLE, 300.0)
 OPTION(client_tick_interval, OPT_DOUBLE, 1.0)
 OPTION(client_trace, OPT_STR, "")
 OPTION(client_readahead_min, OPT_LONGLONG, 128*1024)  // readahead at _least_ this much.
-OPTION(client_readahead_max_bytes, OPT_LONGLONG, 0)  //8 * 1024*1024
+OPTION(client_readahead_max_bytes, OPT_LONGLONG, 0)  // default unlimited
 OPTION(client_readahead_max_periods, OPT_LONGLONG, 4)  // as multiple of file layout period (object size * num stripes)
 OPTION(client_snapdir, OPT_STR, ".snap")
 OPTION(client_mountpoint, OPT_STR, "/")
@@ -382,7 +383,7 @@ OPTION(client_mount_gid, OPT_INT, -1)
 OPTION(client_notify_timeout, OPT_INT, 10) // in seconds
 OPTION(osd_client_watch_timeout, OPT_INT, 30) // in seconds
 OPTION(client_caps_release_delay, OPT_INT, 5) // in seconds
-OPTION(client_quota, OPT_BOOL, false)
+OPTION(client_quota, OPT_BOOL, true)
 OPTION(client_quota_df, OPT_BOOL, true) // use quota for df on subdir mounts
 OPTION(client_oc, OPT_BOOL, true)
 OPTION(client_oc_size, OPT_INT, 1024*1024* 200)    // MB * n
@@ -403,6 +404,7 @@ OPTION(client_dirsize_rbytes, OPT_BOOL, true)
 
 // note: the max amount of "in flight" dirty data is roughly (max - target)
 OPTION(fuse_use_invalidate_cb, OPT_BOOL, true) // use fuse 2.8+ invalidate callback to keep page cache consistent
+OPTION(fuse_disable_pagecache, OPT_BOOL, false)
 OPTION(fuse_allow_other, OPT_BOOL, true)
 OPTION(fuse_default_permissions, OPT_BOOL, true)
 OPTION(fuse_big_writes, OPT_BOOL, true)

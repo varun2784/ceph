@@ -1656,20 +1656,27 @@ void ReplicatedPG::do_op(OpRequestRef& op)
     return;
   }
 
+  // order this op as a write?
+  bool write_ordered =
+    op->may_write() ||
+    op->may_cache() ||
+    m->has_flag(CEPH_OSD_FLAG_RWORDERED);
+
   // discard due to cluster full transition?  (we discard any op that
   // originates before the cluster or pool is marked full; the client
   // will resend after the full flag is removed or if they expect the
   // op to succeed despite being full).  The except is FULL_FORCE ops,
   // which there is no reason to discard because they bypass all full
   // checks anyway.
+  // If this op isn't write or read-ordered, we skip
   // FIXME: we exclude mds writes for now.
-  if (!(m->get_source().is_mds() || m->has_flag(CEPH_OSD_FLAG_FULL_FORCE)) &&
+  if (write_ordered && !( m->get_source().is_mds() || m->has_flag(CEPH_OSD_FLAG_FULL_FORCE)) &&
       info.history.last_epoch_marked_full > m->get_map_epoch()) {
     dout(10) << __func__ << " discarding op sent before full " << m << " "
 	     << *m << dendl;
     return;
   }
-  if (!m->get_source().is_mds() && osd->check_failsafe_full()) {
+  if (!(m->get_source().is_mds()) && osd->check_failsafe_full() && write_ordered) {
     dout(10) << __func__ << " fail-safe full check failed, dropping request"
 	     << dendl;
     return;
@@ -1699,12 +1706,6 @@ void ReplicatedPG::do_op(OpRequestRef& op)
       return;
     }
   }
-
-  // order this op as a write?
-  bool write_ordered =
-    op->may_write() ||
-    op->may_cache() ||
-    m->has_flag(CEPH_OSD_FLAG_RWORDERED);
 
   dout(10) << "do_op " << *m
 	   << (op->may_write() ? " may_write" : "")
@@ -4053,14 +4054,15 @@ struct FillInVerifyExtent : public Context {
 
 struct ToSparseReadResult : public Context {
   bufferlist& data_bl;
+  uint64_t data_offset;
   ceph_le64& len;
-  ToSparseReadResult(bufferlist& bl, ceph_le64& len):
-    data_bl(bl), len(len) {}
+  ToSparseReadResult(bufferlist& bl, uint64_t offset, ceph_le64& len):
+    data_bl(bl), data_offset(offset),len(len) {}
   void finish(int r) {
     if (r < 0) return;
     len = r;
     bufferlist outdata;
-    map<uint64_t, uint64_t> extents = {{0, r}};
+    map<uint64_t, uint64_t> extents = {{data_offset, r}};
     ::encode(extents, outdata);
     ::encode_destructively(data_bl, outdata);
     data_bl.swap(outdata);
@@ -4324,7 +4326,7 @@ int ReplicatedPG::do_osd_ops(OpContext *ctx, vector<OSDOp>& ops)
 	ctx->pending_async_reads.push_back(
 	  make_pair(
 	    boost::make_tuple(op.extent.offset, op.extent.length, op.flags),
-	    make_pair(&osd_op.outdata, new ToSparseReadResult(osd_op.outdata,
+	    make_pair(&osd_op.outdata, new ToSparseReadResult(osd_op.outdata, op.extent.offset,
 							      op.extent.length))));
 	dout(10) << " async_read (was sparse_read) noted for " << soid << dendl;
       } else {
