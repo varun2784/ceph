@@ -31,6 +31,7 @@ namespace librbd {
 
 using namespace image_watcher;
 using namespace watch_notify;
+using util::create_async_context_callback;
 using util::create_context_callback;
 using util::create_rados_safe_callback;
 
@@ -121,7 +122,8 @@ void ImageWatcher::unregister_watch(Context *on_finish) {
 
   cancel_async_requests();
 
-  C_Gather *g = new C_Gather(m_image_ctx.cct, on_finish);
+  C_Gather *g = new C_Gather(m_image_ctx.cct, create_async_context_callback(
+    m_image_ctx, on_finish));
   m_task_finisher->cancel_all(g->new_sub());
 
   {
